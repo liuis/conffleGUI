@@ -8,7 +8,7 @@ import {
   clipboard,
 } from "electron";
 import { enableLiveReload } from "electron-compile";
-//import { initAutoUpdates, getAutoUpdateService } from "./init/AutoUpdate.js";
+import { initAutoUpdates, getAutoUpdateService } from "./init/AutoUpdate.js";
 import path from "path";
 import * as os from "os";
 import merge from "lodash.merge";
@@ -63,8 +63,8 @@ import {
 import { SET_INTERFACES } from "../common/redux/network/actions";
 
 import { ADD_LOG_LINES } from "../common/redux/logs/actions";
-
-import ChainService from "../common/services/ChainService";
+//we hava docker pravite chain , don't need this
+//import ChainService from "../common/services/ChainService";
 import GlobalSettings from "./types/settings/GlobalSettings";
 import WorkspaceManager from "./types/workspaces/WorkspaceManager";
 //import GoogleAnalyticsService from "../common/services/GoogleAnalyticsService";
@@ -113,17 +113,20 @@ if (process.platform === "darwin") {
 }
 
 const performShutdownTasks = async ({ truffleIntegration, chain }) => {
-  // don't quit the app before the updater can do its thing const service = getAutoUpdateService(); if (service == null || !service.isRestartingForUpdate) { mainWindow = null;
+  // don't quit the app before the updater can do its thing 
+  const service = getAutoUpdateService();
+  if (service == null || !service.isRestartingForUpdate) { 
+    mainWindow = null;
 
     if (truffleIntegration) {
       await truffleIntegration.stopWatching();
     }
+    //不需要chain的 启动和关闭
+    //if (chain.isServerStarted()) {
+    //  await chain.stopServer();
+    //}
 
-    if (chain.isServerStarted()) {
-      await chain.stopServer();
-    }
-
-    chain.stopProcess();
+    //chain.stopProcess();
     truffleIntegration.stopProcess();
     app.quit();
   }
@@ -135,7 +138,8 @@ app.on("ready", () => {
 
   setTimeout(async () => {
     const width = screen.getPrimaryDisplay().bounds.width;
-    const chain = new ChainService(app);
+    //const chain = new ChainService(app);
+    const chain = "nothing";
     const truffleIntegration = new TruffleIntegrationService(isDevMode);
     const global = new GlobalSettings(
       path.join(app.getPath("userData"), "global"),
@@ -161,19 +165,19 @@ app.on("ready", () => {
         await truffleIntegration.stopWatching();
       }
 
-      if (chain.isServerStarted()) {
-        // Something wrong happened in the chain, let's try to stop it
-        if (mainWindow) {
-          mainWindow.webContents.send(SET_SYSTEM_ERROR, error);
-        }
-        await chain.stopServer();
-      } else {
-        chain.once("server-started", () => {
-          if (mainWindow) {
-            mainWindow.webContents.send(SET_SYSTEM_ERROR, error);
-          }
-        });
-      }
+      //if (chain.isServerStarted()) {
+      //  // Something wrong happened in the chain, let's try to stop it
+      //  if (mainWindow) {
+      //    mainWindow.webContents.send(SET_SYSTEM_ERROR, error);
+      //  }
+      //  await chain.stopServer();
+      //} else {
+      //  chain.once("server-started", () => {
+      //    if (mainWindow) {
+      //      mainWindow.webContents.send(SET_SYSTEM_ERROR, error);
+      //    }
+      //  });
+      //}
     });
 
     truffleIntegration.on("project-details-update", async data => {
@@ -315,35 +319,45 @@ app.on("ready", () => {
         SET_WORKSPACES,
         workspaceManager.getNonDefaultNames(),
       );
-
-      chain.on("start", async () => {
-        if (workspace) {
-          const workspaceSettings = workspace.settings.getAll();
-          chain.startServer(workspaceSettings);
-        }
+      //此处我们不需要去缓存去拿数据
+      //chain.on("start", async () => {
+      //  if (workspace) {
+      //    const workspaceSettings = workspace.settings.getAll();
+      //    chain.startServer(workspaceSettings);
+      //  }
+      //});
+        
+      //此处我们写hard code, 
+      //TODO  数据从account 下的KeyAccount  wallet.json 读取
+      mainWindow.webContents.send(SET_KEY_DATA, {
+        privateKeys: data.privateKeys,
+        mnemonic: data.mnemonic,
+        hdPath: data.hdPath,
       });
+      //chain.on("server-started", data => {
+      //  if (workspace) {
+      //    mainWindow.webContents.send(SET_KEY_DATA, {
+      //      privateKeys: data.privateKeys,
+      //      mnemonic: data.mnemonic,
+      //      hdPath: data.hdPath,
+      //    });
+      
+      //TODO
+      workspace.settings.handleNewMnemonic(data.mnemonic);
 
-      chain.on("server-started", data => {
-        if (workspace) {
-          mainWindow.webContents.send(SET_KEY_DATA, {
-            privateKeys: data.privateKeys,
-            mnemonic: data.mnemonic,
-            hdPath: data.hdPath,
-          });
-
-          workspace.settings.handleNewMnemonic(data.mnemonic);
-
-          const globalSettings = global.getAll();
-          const workspaceSettings = workspace.settings.getAll();
-          mainWindow.webContents.send(
-            SET_SERVER_STARTED,
-            globalSettings,
-            workspaceSettings,
-            startupMode,
-          );
-        }
-      });
-
+      const globalSettings = global.getAll();
+      const workspaceSettings = workspace.settings.getAll();
+      mainWindow.webContents.send(
+        SET_SERVER_STARTED,
+        globalSettings,
+        workspaceSettings,
+        startupMode,
+      );
+      //  }
+      //});
+        
+      // 我们的docker chain 不考虑退出
+      /*
       chain.on("stdout", data => {
         // `mainWindow` can be null/undefined here if the process is killed
         // (common when developing)
@@ -378,23 +392,25 @@ app.on("ready", () => {
       //fixme: 暂时不进行autoupdate
       //initAutoUpdates(globalSettings, mainWindow);
     });
-
+    */
     ipcMain.on(SAVE_WORKSPACE, async (event, workspaceName, mnemonic) => {
       if (truffleIntegration) {
         await truffleIntegration.stopWatching();
       }
 
-      if (chain.isServerStarted()) {
-        await chain.stopServer();
-      }
+      //if (chain.isServerStarted()) {
+      //  await chain.stopServer();
+      //}
 
       if (workspace) {
-        const chaindataLocation =
-          workspace.chaindataDirectory || (await chain.getDbLocation());
+        //const chaindataLocation =
+        //  workspace.chaindataDirectory || (await chain.getDbLocation());
 
         workspace.saveAs(
           workspaceName,
-          chaindataLocation,
+          //chaindataLocation,
+          //不需要
+          null,
           workspaceManager.directory,
           mnemonic,
         );
@@ -425,7 +441,7 @@ app.on("ready", () => {
       );
 
       startupMode = STARTUP_MODE.SAVING_WORKSPACE;
-      chain.startServer(workspaceSettings);
+      //chain.startServer(workspaceSettings);
 
       // this sends the network interfaces to the renderer process for
       //  enumering in the config screen. it sends repeatedly
@@ -463,10 +479,10 @@ app.on("ready", () => {
         if (truffleIntegration) {
           await truffleIntegration.stopWatching();
         }
-
-        if (chain.isServerStarted()) {
-          await chain.stopServer();
-        }
+        // chain 不存在退出
+        //if (chain.isServerStarted()) {
+        //  await chain.stopServer();
+        //}
       }
 
       workspaceManager.bootstrap();
@@ -488,9 +504,10 @@ app.on("ready", () => {
           await truffleIntegration.stopWatching();
         }
 
-        if (chain.isServerStarted()) {
-          await chain.stopServer();
-        }
+        // chain 不存在退出
+        //if (chain.isServerStarted()) {
+        //  await chain.stopServer();
+        //}
       }
 
       workspace = workspaceManager.get(name);
@@ -544,7 +561,7 @@ app.on("ready", () => {
         );
 
         startupMode = STARTUP_MODE.NORMAL;
-        chain.start();
+        //chain.start();
 
         // this sends the network interfaces to the renderer process for
         //  enumering in the config screen. it sends repeatedly
@@ -557,9 +574,10 @@ app.on("ready", () => {
         await truffleIntegration.stopWatching();
       }
 
-      if (chain.isServerStarted()) {
-        await chain.stopServer();
-      }
+        // chain 不存在退出
+      //if (chain.isServerStarted()) {
+      //  await chain.stopServer();
+      //}
 
       const defaultWorkspace = workspaceManager.get(null);
       const workspaceName = moniker.choose();
@@ -586,7 +604,7 @@ app.on("ready", () => {
       );
 
       startupMode = STARTUP_MODE.NEW_WORKSPACE;
-      chain.start();
+      //chain.start();
 
       // this sends the network interfaces to the renderer process for
       //  enumering in the config screen. it sends repeatedly
@@ -608,6 +626,8 @@ app.on("ready", () => {
       );
     });
 
+    // never  server restart
+    /*
     // If the frontend asks to start the server, start the server.
     // This will trigger then chain event handlers above once the server stops.
     ipcMain.on(REQUEST_SERVER_RESTART, async () => {
@@ -671,7 +691,7 @@ app.on("ready", () => {
         sendNetworkInterfaces();
       }
     });
-
+    */
     ipcMain.on(
       REQUEST_SAVE_SETTINGS,
       async (event, globalSettings, workspaceSettings) => {
