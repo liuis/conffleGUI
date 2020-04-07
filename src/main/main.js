@@ -345,7 +345,7 @@ app.on("ready", () => {
       //TODO
       workspace.settings.handleNewMnemonic(data.mnemonic);
 
-      const globalSettings = global.getAll();
+      //const globalSettings = global.getAll();
       const workspaceSettings = workspace.settings.getAll();
       mainWindow.webContents.send(
         SET_SERVER_STARTED,
@@ -391,8 +391,9 @@ app.on("ready", () => {
       });
       //fixme: 暂时不进行autoupdate
       //initAutoUpdates(globalSettings, mainWindow);
-    });
+
     */
+    });
     ipcMain.on(SAVE_WORKSPACE, async (event, workspaceName, mnemonic) => {
       if (truffleIntegration) {
         await truffleIntegration.stopWatching();
