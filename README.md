@@ -18,4 +18,4 @@ To get started:
 
 0. Clone this repo
 0. Run `npm install`
-0. Run `npm run dev`
+0. Run `npm run start`
