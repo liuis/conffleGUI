@@ -1,4 +1,4 @@
-client GUI for [conflux-valve](https://github.com/Conflux-Chain/conflux-valve) project, inspired by Ganache!
+Personal blockchain for Conflux-chain development && client GUI for [conflux-valve](https://github.com/Conflux-Chain/conflux-valve) project, inspired by Ganache!
 
 before run this project,you must be run the [conflux-docker](https://github.com/Conflux-Chain/conflux-docker) project.
 
